@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>আর্নিং প্ল্যাটফর্ম - মোবাইল অপ্টিমাইজড</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase Compat Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #0f172a; 
+            color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .plan-card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .fb-cover { background: linear-gradient(135deg, #1e3a8a, #3b82f6, #1d4ed8); }
+        @keyframes bluePulse {
+            0%, 100% { opacity: 0.4; transform: scale(0.95); box-shadow: 0 0 4px #3b82f6; }
+            50% { opacity: 1; transform: scale(1.1); box-shadow: 0 0 16px #2563eb, 0 0 24px #3b82f6; }
+        }
+        .live-blue-light { animation: bluePulse 1.8s infinite ease-in-out; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body class="pb-24 antialiased selection:bg-blue-500/30">
+
+    <div class="bg-slate-900 border-b border-slate-800 p-3 flex justify-between items-center px-4 sticky top-0 z-50 backdrop-blur-md bg-opacity-95">
+        <span class="text-[11px] text-slate-400 font-bold flex items-center gap-1">
+            <i class="fa-solid fa-cloud text-blue-400 animate-pulse"></i> 
+            <span id="db-status" class="text-amber-400 truncate max-w-[120px] sm:max-w-none">সার্ভার সংযোগ করা হচ্ছে...</span>
+        </span>
+        <div class="flex gap-1.5">
+            <button onclick="toggleSystemMode('user')" id="btn-mode-user" class="bg-blue-600 text-white text-[11px] px-2.5 py-1.5 rounded-lg font-bold shadow-md active:scale-95 transition">ইউজার</button>
+            <button onclick="toggleSystemMode('admin')" id="btn-mode-admin" class="bg-slate-800 text-slate-300 text-[11px] px-2.5 py-1.5 rounded-lg font-bold active:scale-95 transition">অ্যাডমিন 👑</button>
+        </div>
+    </div>
+
+    <div id="user-interface" class="w-full">
+        <div id="auth-section" class="flex justify-center items-center min-h-[85vh] p-4">
+            <div class="bg-slate-800 p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700/60">
+                <h2 id="auth-title" class="text-2xl sm:text-3xl font-black text-center mb-6 text-blue-400 tracking-wide">লগইন করুন</h2>
+                
+                <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold mb-1 text-slate-400">ইমেইল অ্যাড্রেস</label>
+                        <input type="email" id="auth-email" required class="w-full p-3 text-sm rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-blue-500 text-white transition" placeholder="example@mail.com">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1 text-slate-400">মোবাইল নম্বর (বিকাশ)</label>
+                        <input type="tel" id="auth-phone" required class="w-full p-3 text-sm rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-blue-500 text-white transition" placeholder="01XXXXXXXXX">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1 text-slate-400">৬ অক্ষরের পাসওয়ার্ড</label>
+                        <input type="password" id="auth-pass" minlength="6" required class="w-full p-3 text-sm rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-blue-500 text-white transition" placeholder="••••••">
+                    </div>
+                    <div id="refer-group" class="hidden">
+                        <label class="block text-xs font-semibold mb-1 text-slate-400">রেফার কোড (ঐচ্ছিক)</label>
+                        <input type="text" id="auth-ref" class="w-full p-3 text-sm rounded-xl bg-slate-900 border border-slate-700 focus:outline-none text-white" placeholder="কোড থাকলে দিন">
+                    </div>
+                    <button type="submit" id="btn-auth-submit" class="w-full bg-blue-500 hover:bg-blue-600 active:scale-[0.99] text-white font-bold p-3.5 rounded-xl transition shadow-lg text-sm mt-2">প্রবেশ করুন</button>
+                    <p class="text-center text-xs text-slate-400 mt-3">অ্যাকাউন্ট নেই? <span onclick="toggleAuthMode()" id="auth-toggle-text" class="text-blue-400 cursor-pointer underline font-bold">নতুন অ্যাকাউন্ট তৈরি করুন</span></p>
+                </form>
+            </div>
+        </div>
+
+        <div id="main-dashboard" class="hidden max-w-md mx-auto px-4 pt-4 sm:max-w-5xl">
+            <div class="bg-slate-800 rounded-2xl overflow-hidden border border-slate-700/70 shadow-xl mb-6 relative">
+                <div class="fb-cover h-24 sm:h-36 w-full"></div>
+                <div class="px-4 pb-5 pt-12 sm:pt-16 relative flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="absolute -top-10 left-1/2 transform -translate-x-1/2 sm:left-8 sm:translate-x-0">
+                        <div class="w-20 h-20 rounded-full border-4 border-slate-800 bg-slate-700 flex justify-center items-center text-white text-2xl font-bold shadow-lg">
+                            <i class="fa-solid fa-user-tie text-blue-400"></i>
+                        </div>
+                    </div>
+                    <div class="text-center sm:text-left mt-2 sm:mt-0 sm:pl-24 w-full">
+                        <h2 class="text-xl font-black text-white tracking-wide truncate" id="user-display-id">ID: 01XXXXXXXXX</h2>
+                        <p class="text-[11px] text-slate-400 mt-0.5">স্ট্যাটাস: <span class="text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full">সক্রিয় মেম্বার</span></p>
+                    </div>
+                    <div class="bg-slate-900/80 backdrop-blur-sm px-5 py-2.5 rounded-xl border border-slate-700/50 text-center w-full sm:w-auto min-w-[140px] shadow-inner">
+                        <p class="text-[10px] text-slate-400 uppercase tracking-wider font-bold">কারেন্ট ব্যালেন্স</p>
+                        <p class="text-xl font-black text-amber-400 mt-0.5"><span id="user-balance">0.00</span> ৳</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="home-screen" class="space-y-4">
+                <h2 class="text-md font-bold border-l-4 border-blue-500 pl-2 text-slate-200">ইনভেস্টমেন্ট প্ল্যানসমূহ</h2>
+                <div id="plans-container" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
+            </div>
+
+            <div id="withdraw-screen" class="hidden bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4 shadow-xl">
+                <h2 class="text-lg font-bold text-center text-amber-400"><i class="fa-solid fa-wallet mr-1.5"></i>টাকা উত্তোলন</h2>
+                <form onsubmit="handleWithdrawSubmit(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold mb-1 text-slate-400">বিকাশ নম্বর</label>
+                        <input type="tel" id="withdraw-phone" required class="w-full p-3 text-sm rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-amber-500" placeholder="01XXXXXXXXX">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1 text-slate-400">টাকার পরিমাণ (৳)</label>
+                        <input type="number" id="withdraw-amount" required class="w-full p-3 text-sm rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-amber-500" placeholder="পরিমাণ লিখুন">
+                    </div>
+                    <button type="submit" class="w-full bg-amber-500 text-slate-950 font-black p-3.5 rounded-xl active:scale-[0.99] transition shadow-md text-sm mt-2">উইথড্র রিকোয়েস্ট পাঠান</button>
+                </form>
+            </div>
+
+            <div id="profile-screen" class="hidden space-y-4">
+                <h2 class="text-md font-bold border-l-4 border-blue-500 pl-2 text-slate-200">ইউজার প্রোফাইল</h2>
+                <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl space-y-3">
+                    <h3 class="text-sm font-bold text-white">আপনার এক্সক্লুসিভ রেফারেল আইডি</h3>
+                    <div class="flex flex-col gap-2 sm:flex-row">
+                        <div id="share-link-box" class="w-full bg-slate-950 p-3 rounded-xl border border-slate-700 font-mono text-xs text-yellow-400 flex items-center justify-center sm:justify-start break-all min-h-[44px]">লগইন করুন...</div>
+                        <button onclick="copyReferralCode()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl transition text-xs shrink-0 active:scale-95">কপি কোড</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="deposit-modal" class="hidden fixed inset-0 bg-black/80 flex justify-center items-center p-4 z-50 backdrop-blur-sm">
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 w-full max-w-sm space-y-4 relative shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+                <button onclick="closeDepositModal()" class="absolute top-3 right-3 text-slate-400 text-2xl p-1 active:scale-75 transition">&times;</button>
+                <h3 class="text-lg font-bold text-blue-400 flex items-center gap-1.5"><i class="fa-solid fa-file-invoice-dollar"></i> প্ল্যান পেমেন্ট</h3>
+                <div class="text-xs text-slate-300 space-y-1 bg-slate-900/50 p-3 rounded-xl border border-slate-700/40">
+                    <p>বিকাশ পার্সোনাল নাম্বারে <span class="font-bold text-amber-400">সেন্ট মানি</span> করুন:</p>
+                    <p class="text-emerald-400 font-black text-sm select-all tracking-wider text-center bg-slate-950 p-2 my-1 rounded-lg border border-emerald-500/20">01625668192</p>
+                    <p>টাকার পরিমাণ: <span id="modal-plan-amount" class="text-white font-bold text-sm">0</span> ৳</p>
+                </div>
+                <form onsubmit="handleSubmitTxn(event)" class="space-y-3 pt-1">
+                    <input type="text" id="txn-id" required class="w-full p-3 text-sm rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500" placeholder="বিকাশ TrxID দিন">
+                    <button type="submit" class="w-full bg-blue-500 text-white font-bold p-3 rounded-xl shadow-md active:scale-[0.99] transition text-sm">রিকোয়েস্ট পাঠান</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- নেভিগেশন বারে সাপোর্ট অপশন যুক্ত করা হয়েছে -->
+        <div id="footer-nav" class="hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 pb-safe z-40 shadow-2xl backdrop-blur-md bg-opacity-95">
+            <div class="max-w-md mx-auto flex justify-around items-center py-2">
+                <button onclick="switchScreen('home')" class="flex flex-col items-center gap-0.5 text-blue-400 w-16 py-1 active:scale-90 transition" id="nav-home">
+                    <i class="fa-solid fa-house text-lg"></i><span class="text-[10px] font-bold">হোম</span>
+                </button>
+                <button onclick="switchScreen('withdraw')" class="flex flex-col items-center gap-0.5 text-slate-400 w-16 py-1 active:scale-90 transition" id="nav-withdraw">
+                    <i class="fa-solid fa-money-bill-transfer text-lg"></i><span class="text-[10px] font-bold">উইথড্র</span>
+                </button>
+                <button onclick="switchScreen('profile')" class="flex flex-col items-center gap-0.5 text-slate-400 w-16 py-1 active:scale-90 transition" id="nav-profile">
+                    <i class="fa-solid fa-circle-user text-lg"></i><span class="text-[10px] font-bold">প্রোফাইল</span>
+                </button>
+                <a href="https://t.me/madhobRoy90" target="_blank" class="flex flex-col items-center gap-0.5 text-slate-400 w-16 py-1 active:scale-90 transition text-center" id="nav-support">
+                    <i class="fa-brands fa-telegram text-lg text-sky-400"></i><span class="text-[10px] font-bold">সাপোর্ট</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-interface" class="hidden max-w-md mx-auto px-4 pt-4 sm:max-w-5xl">
+        <h1 class="text-xl font-black text-amber-400 border-b border-slate-800 pb-3 mb-4 flex items-center gap-1.5"><i class="fa-solid fa-user-shield"></i> প্রধান অ্যাডমিন প্যানেল</h1>
+        
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700/80 shadow-md">
+                <h3 class="text-sm font-bold text-blue-400 mb-3 flex items-center gap-1"><i class="fa-solid fa-arrow-down-long text-xs"></i> ডিপোজিট এপ্রুভাল লিস্ট</h3>
+                <div class="overflow-x-auto custom-scrollbar rounded-xl border border-slate-900">
+                    <table class="w-full text-left text-xs text-slate-300 min-w-[320px]">
+                        <thead class="bg-slate-900 text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                            <tr><th class="p-2.5">ইউজার</th><th class="p-2.5">প্ল্যান</th><th class="p-2.5">Trx ID</th><th class="p-2.5 text-right">অ্যাকশন</th></tr>
+                        </thead>
+                        <tbody id="admin-deposit-list"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700/80 shadow-md">
+                <h3 class="text-sm font-bold text-amber-400 mb-3 flex items-center gap-1"><i class="fa-solid fa-arrow-up-long text-xs"></i> উইথড্র পেমেন্ট লিস্ট</h3>
+                <div class="overflow-x-auto custom-scrollbar rounded-xl border border-slate-900">
+                    <table class="w-full text-left text-xs text-slate-300 min-w-[320px]">
+                        <thead class="bg-slate-900 text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                            <tr><th class="p-2.5">ইউজার</th><th class="p-2.5">বিকাশ</th><th class="p-2.5">টাকা</th><th class="p-2.5 text-right">অ্যাকশন</th></tr>
+                        </thead>
+                        <tbody id="admin-withdraw-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCE6CuZ-TrV7QNxt_bij9zmMlRojBKPRC8",
+            authDomain: "json-file-f0a4d.firebaseapp.com",
+            databaseURL: "https://json-file-f0a4d-default-rtdb.firebaseio.com",
+            projectId: "json-file-f0a4d",
+            storageBucket: "json-file-f0a4d.firebasestorage.app",
+            messagingSenderId: "887094458854",
+            appId: "1:887094458854:web:b9844c9d9b8ba058377e27",
+            measurementId: "G-ELGMREMHPD"
+        };
+
+        // Firebase ইনিশিয়ালাইজেশন (Compat মোড)
+        let db = null; let auth = null;
+        if (firebaseConfig.apiKey) {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            auth = firebase.auth();
+            document.getElementById('db-status').innerText = "সার্ভার কানেক্টেড (লাইভ)";
+            document.getElementById('db-status').className = "text-emerald-400 font-bold";
+        }
+
+        const planCosts = [400, 600, 800, 1000, 30000];
+        const planNames = ["Bronze", "Silver", "Gold", "Platinum", "VIP"];
+        let isRegisterMode = false;
+        let userData = { balance: 0, phone: '', activePlans: [0,0,0,0,0] };
+        let selectedPlanIdx = 0;
+
+        // ইনভেস্টমেন্ট প্ল্যান ডাইনামিক জেনারেশন
+        const container = document.getElementById('plans-container');
+        container.innerHTML = planCosts.map((cost, idx) => `
+            <div class="plan-card bg-slate-800 p-5 rounded-2xl border border-slate-700/80 flex flex-col justify-between relative shadow-sm">
+                <div>
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-lg font-black text-white">${planNames[idx]}</h3>
+                        <div id="live-light-${idx}" class="hidden items-center gap-1 bg-slate-950 px-2 py-0.5 rounded-full border border-blue-500/30">
+                            <span class="w-2 h-2 rounded-full bg-blue-400 live-blue-light"></span>
+                            <span class="text-[9px] text-blue-300 font-bold uppercase tracking-wider">Mining</span>
+                        </div>
+                    </div>
+                    <p class="text-2xl font-black text-amber-400 my-2">${cost} ৳</p>
+                    <p class="text-[11px] text-slate-400 mb-4">দৈনিক ব্যাক: ১০% | আপনার কেনা: <span id="plan-count-${idx}" class="text-yellow-400 font-bold">0</span> টি</p>
+                </div>
+                <button onclick="openDepositModal(${idx}, ${cost})" class="w-full bg-blue-600 active:scale-95 text-white text-xs font-bold py-2.5 rounded-xl shadow transition">অ্যাক্টিভ করুন</button>
+            </div>
+        `).join('');
+
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            document.getElementById('auth-title').innerText = isRegisterMode ? "নিবন্ধন করুন" : "লগইন করুন";
+            document.getElementById('btn-auth-submit').innerText = isRegisterMode ? "রেজিস্ট্রেশন করুন" : "প্রবেশ করুন";
+            document.getElementById('auth-toggle-text').innerText = isRegisterMode ? "লগইন করুন" : "নতুন অ্যাকাউন্ট তৈরি করুন";
+            document.getElementById('refer-group').classList.toggle('hidden', !isRegisterMode);
+        }
+
+        function handleAuth(e) {
+            e.preventDefault();
+            if(!db) { alert("ডাটাবেজ কানেকশন সম্পন্ন হয়নি!"); return; }
+            const email = document.getElementById('auth-email').value;
+            const pass = document.getElementById('auth-pass').value;
+            const phone = document.getElementById('auth-phone').value;
+            const refCode = document.getElementById('auth-ref').value;
+
+            if (isRegisterMode) {
+                auth.createUserWithEmailAndPassword(email, pass).then((res) => {
+                    let uid = res.user.uid;
+                    db.ref('users/' + uid).set({ phone: phone, balance: 100, activePlans: [0,0,0,0,0] });
+                    if(refCode.trim() !== "") {
+                        db.ref('users/' + refCode.trim() + '/balance').transaction((currentBalance) => {
+                            return (currentBalance || 0) + 50;
+                        });
+                    }
+                    alert("রেজিস্ট্রেশন সফল ও ১০০৳ সাইনআপ বোনাস যুক্ত হয়েছে!"); setupDataListeners(uid);
+                }).catch(err => alert(err.message));
+            } else {
+                auth.signInWithEmailAndPassword(email, pass).then((res) => { setupDataListeners(res.user.uid); }).catch(err => alert(err.message));
+            }
+        }
+
+        function setupDataListeners(uid) {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('main-dashboard').classList.remove('hidden');
+            document.getElementById('footer-nav').classList.remove('hidden');
+
+            db.ref('users/' + uid).on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    userData = snapshot.val();
+                    if(!userData.activePlans) userData.activePlans = [0,0,0,0,0];
+                    document.getElementById('user-balance').innerText = userData.balance;
+                    document.getElementById('user-display-id').innerText = "ID: " + userData.phone;
+                    document.getElementById('share-link-box').innerText = uid;
+                    
+                    userData.activePlans.forEach((count, idx) => {
+                        const countEl = document.getElementById(`plan-count-${idx}`);
+                        const lightEl = document.getElementById(`live-light-${idx}`);
+                        if(countEl) countEl.innerText = count;
+                        if(lightEl) {
+                            if(count > 0) lightEl.classList.remove('hidden');
+                            else lightEl.classList.add('hidden');
+                        }
+                    });
+                }
+            });
+        }
+
+        function switchScreen(screen) {
+            document.getElementById('home-screen').classList.toggle('hidden', screen !== 'home');
+            document.getElementById('withdraw-screen').classList.toggle('hidden', screen !== 'withdraw');
+            document.getElementById('profile-screen').classList.toggle('hidden', screen !== 'profile');
+            
+            document.getElementById('nav-home').className = screen === 'home' ? "flex flex-col items-center gap-0.5 text-blue-400 w-16 py-1 active:scale-90 transition" : "flex flex-col items-center gap-0.5 text-slate-400 w-16 py-1 active:scale-90 transition";
+            document.getElementById('nav-withdraw').className = screen === 'withdraw' ? "flex flex-col items-center gap-0.5 text-blue-400 w-16 py-1 active:scale-90 transition" : "flex flex-col items-center gap-0.5 text-slate-400 w-16 py-1 active:scale-90 transition";
+            document.getElementById('nav-profile').className = screen === 'profile' ? "flex flex-col items-center gap-0.5 text-blue-400 w-16 py-1 active:scale-90 transition" : "flex flex-col items-center gap-0.5 text-slate-400 w-16 py-1 active:scale-90 transition";
+        }
+
+        function openDepositModal(idx, cost) {
+            selectedPlanIdx = idx;
+            document.getElementById('modal-plan-amount').innerText = cost;
+            document.getElementById('deposit-modal').classList.remove('hidden');
+        }
+
+        function closeDepositModal() {
+            document.getElementById('deposit-modal').classList.add('hidden');
+        }
+
+        function toggleSystemMode(mode) {
+            document.getElementById('user-interface').classList.toggle('hidden', mode !== 'user');
+            document.getElementById('admin-interface').classList.toggle('hidden', mode !== 'admin');
+            
+            document.getElementById('btn-mode-user').className = mode === 'user' ? "bg-blue-600 text-white text-[11px] px-2.5 py-1.5 rounded-lg font-bold shadow-md active:scale-95 transition" : "bg-slate-800 text-slate-300 text-[11px] px-2.5 py-1.5 rounded-lg font-bold active:scale-95 transition";
+            document.getElementById('btn-mode-admin').className = mode === 'admin' ? "bg-blue-600 text-white text-[11px] px-2.5 py-1.5 rounded-lg font-bold shadow-md active:scale-95 transition" : "bg-slate-800 text-slate-300 text-[11px] px-2.5 py-1.5 rounded-lg font-bold active:scale-95 transition";
+        }
+    </script>
+</body>
+</html>
